@@ -2,6 +2,7 @@ package coredevices.ring.agent.integrations.obsidian
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ObsidianNoteFormatterTest {
@@ -125,6 +126,59 @@ class ObsidianNoteFormatterTest {
     }
 
     @Test
+    fun singleFileModesCarryNewestFirstIntoWrite() {
+        val main = ObsidianNoteFormatter.plan(config(ObsidianMode.MAIN_NOTE, newestFirst = true), "t", y, mo, d, h, mi)
+        val named = ObsidianNoteFormatter.plan(config(ObsidianMode.NAMED_NOTE, targetNote = "Log", newestFirst = true), "t", y, mo, d, h, mi)
+        assertTrue((main as ObsidianWrite.Append).newestFirst)
+        assertTrue((named as ObsidianWrite.Append).newestFirst)
+        val default = ObsidianNoteFormatter.plan(config(ObsidianMode.MAIN_NOTE), "t", y, mo, d, h, mi)
+        assertFalse((default as ObsidianWrite.Append).newestFirst)
+    }
+
+    @Test
+    fun mergePrependPutsBlockAboveExistingContent() {
+        val merged = ObsidianNoteFormatter.mergePrepend("## older\n\nold body\n", "## new\n\nbody\n")
+        assertEquals("## new\n\nbody\n\n## older\n\nold body\n", merged)
+    }
+
+    @Test
+    fun mergePrependKeepsFrontmatterOnTop() {
+        val existing = "---\ntags: [log]\n---\n\n## older\n\nold\n"
+        val merged = ObsidianNoteFormatter.mergePrepend(existing, "## new\n\nbody\n")
+        assertEquals("---\ntags: [log]\n---\n\n## new\n\nbody\n\n## older\n\nold\n", merged)
+    }
+
+    @Test
+    fun mergePrependIntoFrontmatterOnlyFile() {
+        assertEquals("---\na: 1\n---\n\n## new\n", ObsidianNoteFormatter.mergePrepend("---\na: 1\n---\n", "## new\n"))
+        assertEquals("---\na: 1\n---\n\n## new\n", ObsidianNoteFormatter.mergePrepend("---\na: 1\n---", "## new\n"))
+    }
+
+    @Test
+    fun mergePrependTreatsUnclosedOrLaterFencesAsBody() {
+        // A horizontal rule further down, or an unclosed fence, is not frontmatter.
+        assertEquals("## new\n\n# Title\n---\nmore\n", ObsidianNoteFormatter.mergePrepend("# Title\n---\nmore\n", "## new\n"))
+        assertEquals("## new\n\n---\nnot: closed\n", ObsidianNoteFormatter.mergePrepend("---\nnot: closed\n", "## new\n"))
+    }
+
+    @Test
+    fun mergePrependCollapsesLeadingBlankLinesOfBody() {
+        assertEquals("## new\n\nold\n", ObsidianNoteFormatter.mergePrepend("\n\n\nold\n", "## new\n"))
+    }
+
+    @Test
+    fun mergePrependHandlesCrlfFrontmatter() {
+        val merged = ObsidianNoteFormatter.mergePrepend("---\r\na: 1\r\n---\r\nold\r\n", "## new\n")
+        assertEquals("---\r\na: 1\r\n---\n\n## new\n\nold\r\n", merged)
+    }
+
+    @Test
+    fun mergePrependIntoNullOrBlankJustReturnsBlock() {
+        assertEquals("## new\n", ObsidianNoteFormatter.mergePrepend(null, "## new\n"))
+        assertEquals("## new\n", ObsidianNoteFormatter.mergePrepend("\n  \n", "## new\n"))
+    }
+
+    @Test
     fun dedupeNameAppendsCounterUntilFree() {
         val taken = setOf("Index Inbox/2026-06-18 1405.md", "Index Inbox/2026-06-18 1405 (2).md")
         val free = ObsidianNoteFormatter.dedupeName("Index Inbox/2026-06-18 1405.md") { it in taken }
@@ -142,5 +196,12 @@ class ObsidianNoteFormatterTest {
         targetNote: String = "",
         subfolder: String = "Index Inbox",
         customTag: String = "",
-    ) = ObsidianConfig(mode = mode, targetNote = targetNote, subfolder = subfolder, customTag = customTag)
+        newestFirst: Boolean = false,
+    ) = ObsidianConfig(
+        mode = mode,
+        targetNote = targetNote,
+        subfolder = subfolder,
+        customTag = customTag,
+        newestFirst = newestFirst,
+    )
 }

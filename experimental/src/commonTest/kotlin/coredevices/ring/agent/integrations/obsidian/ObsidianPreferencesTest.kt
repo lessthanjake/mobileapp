@@ -5,6 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ObsidianPreferencesTest {
 
@@ -17,6 +18,7 @@ class ObsidianPreferencesTest {
         assertEquals("", prefs.targetNote.value)
         assertEquals("Index Inbox", prefs.subfolder.value)
         assertEquals("", prefs.customTag.value)
+        assertFalse(prefs.newestFirst.value)
     }
 
     @Test
@@ -37,12 +39,14 @@ class ObsidianPreferencesTest {
         prefs.setTargetNote("Daily.md")
         prefs.setSubfolder("Capture")
         prefs.setCustomTag("fleeting")
+        prefs.setNewestFirst(true)
 
         val reloaded = ObsidianPreferences(settings)
         assertEquals(ObsidianMode.NAMED_NOTE, reloaded.mode.value)
         assertEquals("Daily.md", reloaded.targetNote.value)
         assertEquals("Capture", reloaded.subfolder.value)
         assertEquals("fleeting", reloaded.customTag.value)
+        assertTrue(reloaded.newestFirst.value)
     }
 
     @Test
@@ -52,12 +56,15 @@ class ObsidianPreferencesTest {
         prefs.setVault("h", "n")
         prefs.setMode(ObsidianMode.MAIN_NOTE)
         prefs.setCustomTag("fleeting")
+        prefs.setNewestFirst(true)
 
         prefs.clear()
 
         assertNull(prefs.vaultHandle.value)
         assertFalse(settings.hasKey("obsidian_vault_handle"))
         assertFalse(settings.hasKey("obsidian_custom_tag"))
+        assertFalse(settings.hasKey("obsidian_newest_first"))
+        assertFalse(prefs.newestFirst.value)
         assertEquals(ObsidianMode.TIMESTAMPED_FILES, prefs.mode.value)
         assertEquals("", prefs.customTag.value)
     }

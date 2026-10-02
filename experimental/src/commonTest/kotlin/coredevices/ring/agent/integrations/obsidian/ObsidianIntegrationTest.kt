@@ -139,6 +139,34 @@ class ObsidianIntegrationTest {
     }
 
     @Test
+    fun newestFirstPrependsEachNoteBelowFrontmatter() = runTest {
+        val vault = FakeVault()
+        vault.files["Log.md"] = "---\ntags: [log]\n---\n\n## 2026-06-17 09:00\n\nyesterday\n"
+        val prefs = ObsidianPreferences(MapSettings()).apply { setVault("h", "vault") }
+        val integration = integration(vault, prefs)
+        integration.saveConfig(ObsidianMode.NAMED_NOTE, "Log", "", "", newestFirst = true)
+        integration.createNote("first")
+        integration.createNote("second")
+        assertEquals(
+            "---\ntags: [log]\n---\n\n" +
+                "## 2026-06-18 14:05\n\nsecond\n\n" +
+                "## 2026-06-18 14:05\n\nfirst\n\n" +
+                "## 2026-06-17 09:00\n\nyesterday\n",
+            vault.files["Log.md"],
+        )
+    }
+
+    @Test
+    fun mainNoteModeNewestFirstCreatesFileWhenAbsent() = runTest {
+        val vault = FakeVault()
+        val prefs = ObsidianPreferences(MapSettings()).apply {
+            setVault("h", "vault"); setMode(ObsidianMode.MAIN_NOTE); setNewestFirst(true)
+        }
+        integration(vault, prefs).createNote("hello")
+        assertEquals("## 2026-06-18 14:05\n\nhello\n", vault.files["Pebble Index.md"])
+    }
+
+    @Test
     fun saveConfigStripsPathTraversalFromTargetNote() = runTest {
         val prefs = ObsidianPreferences(MapSettings()).apply { setVault("h", "vault") }
         val integration = integration(FakeVault(), prefs)

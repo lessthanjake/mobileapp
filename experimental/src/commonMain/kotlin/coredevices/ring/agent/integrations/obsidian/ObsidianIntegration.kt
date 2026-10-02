@@ -55,11 +55,18 @@ class ObsidianIntegration(
         return vault.hasAccess(handle)
     }
 
-    fun saveConfig(mode: ObsidianMode, targetNote: String, subfolder: String, customTag: String) {
+    fun saveConfig(
+        mode: ObsidianMode,
+        targetNote: String,
+        subfolder: String,
+        customTag: String,
+        newestFirst: Boolean = false,
+    ) {
         prefs.setMode(mode)
         prefs.setTargetNote(ObsidianNoteFormatter.sanitizeSubfolder(targetNote))
         prefs.setSubfolder(subfolder)
         prefs.setCustomTag(ObsidianNoteFormatter.sanitizeTag(customTag))
+        prefs.setNewestFirst(newestFirst)
     }
 
     fun vaultDisplayName(): String? = prefs.vaultName.value
@@ -69,6 +76,7 @@ class ObsidianIntegration(
     fun currentTargetNote(): String = prefs.targetNote.value
     fun currentSubfolder(): String = prefs.subfolder.value
     fun currentCustomTag(): String = prefs.customTag.value
+    fun currentNewestFirst(): Boolean = prefs.newestFirst.value
 
     /** Vault-relative paths of existing `.md` files for the "named note" suggestions (empty if no access). */
     suspend fun listNotes(): List<String> {
@@ -95,6 +103,7 @@ class ObsidianIntegration(
             targetNote = targetNote,
             subfolder = prefs.subfolder.value,
             customTag = prefs.customTag.value,
+            newestFirst = prefs.newestFirst.value,
         )
         val local = clock.now().toLocalDateTime(timeZone)
         val write = ObsidianNoteFormatter.plan(
@@ -113,7 +122,11 @@ class ObsidianIntegration(
             }
             is ObsidianWrite.Append -> {
                 val current = vault.readFile(handle, write.fileName)
-                val merged = ObsidianNoteFormatter.mergeAppend(current, write.block)
+                val merged = if (write.newestFirst) {
+                    ObsidianNoteFormatter.mergePrepend(current, write.block)
+                } else {
+                    ObsidianNoteFormatter.mergeAppend(current, write.block)
+                }
                 if (vault.writeFile(handle, write.fileName, merged)) write.fileName else null
             }
         }

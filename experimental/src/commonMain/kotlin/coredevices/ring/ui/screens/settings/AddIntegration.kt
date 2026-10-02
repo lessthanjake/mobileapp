@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -436,6 +437,7 @@ fun ObsidianDialog(
     var customTag by remember { mutableStateOf(if (alreadyConfigured) integration.currentCustomTag() else "") }
     var notes by remember { mutableStateOf<List<String>>(emptyList()) }
     var notePath by remember { mutableStateOf(if (alreadyConfigured) integration.currentTargetNote() else "") }
+    var newestFirst by remember { mutableStateOf(if (alreadyConfigured) integration.currentNewestFirst() else false) }
 
     LaunchedEffect(alreadyConfigured) {
         if (alreadyConfigured) {
@@ -480,6 +482,7 @@ fun ObsidianDialog(
                                 targetNote = notePath,
                                 subfolder = subfolder,
                                 customTag = customTag,
+                                newestFirst = newestFirst,
                             )
                             if (!alreadyConfigured) {
                                 preferences.setNoteProvider(NoteProvider.Obsidian)
@@ -533,6 +536,8 @@ fun ObsidianDialog(
                     notes = notes,
                     notePath = notePath,
                     onNotePathChange = { notePath = it },
+                    newestFirst = newestFirst,
+                    onNewestFirstChange = { newestFirst = it },
                 )
             }
             if (error != null) {
@@ -558,6 +563,8 @@ private fun ObsidianModeSelector(
     notes: List<String>,
     notePath: String,
     onNotePathChange: (String) -> Unit,
+    newestFirst: Boolean,
+    onNewestFirstChange: (Boolean) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         ModeOption(
@@ -567,12 +574,12 @@ private fun ObsidianModeSelector(
         ) { onModeChange(ObsidianMode.TIMESTAMPED_FILES) }
         ModeOption(
             title = "Add to one main note",
-            description = "Everything is appended to Pebble Index.md",
+            description = "Everything is added to Pebble Index.md",
             selected = mode == ObsidianMode.MAIN_NOTE,
         ) { onModeChange(ObsidianMode.MAIN_NOTE) }
         ModeOption(
             title = "Add to an existing note",
-            description = "Append to a note you choose",
+            description = "Add to a note you choose",
             selected = mode == ObsidianMode.NAMED_NOTE,
         ) { onModeChange(ObsidianMode.NAMED_NOTE) }
 
@@ -606,6 +613,7 @@ private fun ObsidianModeSelector(
                     notePath = notePath,
                     onNotePathChange = onNotePathChange,
                 )
+                NewestFirstToggle(newestFirst, onNewestFirstChange)
             }
             ObsidianMode.MAIN_NOTE -> {
                 Text(
@@ -613,8 +621,31 @@ private fun ObsidianModeSelector(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                NewestFirstToggle(newestFirst, onNewestFirstChange)
             }
         }
+    }
+}
+
+@Composable
+private fun NewestFirstToggle(
+    newestFirst: Boolean,
+    onNewestFirstChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable { onNewestFirstChange(!newestFirst) }.padding(top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Newest notes first", style = MaterialTheme.typography.bodyLarge)
+            Text(
+                "Add each note to the top, below any properties",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        Switch(checked = newestFirst, onCheckedChange = onNewestFirstChange)
     }
 }
 
@@ -661,7 +692,7 @@ private fun NotePathField(
                 onNotePathChange(it)
                 expanded = true
             },
-            label = { Text("Note to append to") },
+            label = { Text("Note to add to") },
             placeholder = { Text("Inbox/Index notes") },
             supportingText = { Text("Path inside your vault, subfolders allowed. Created if it doesn't exist.") },
             singleLine = true,
